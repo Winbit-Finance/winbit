@@ -1,0 +1,37 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules para Winbit App
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Función helper para verificar que el usuario está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Función helper para verificar el tamaño del archivo (máx 5MB)
+    function isValidSize() {
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+    
+    // Función helper para verificar el tipo de archivo
+    function isValidFileType() {
+      return request.resource.contentType.matches('image/(jpeg|jpg|png|webp)')
+          || request.resource.contentType == 'application/pdf';
+    }
+    
+    // Reglas para la carpeta "deposits"
+    match /deposits/{fileName} {
+      allow read: if isAuthenticated();
+
+      // Inversores con email/password usan sesión anónima de Firebase Auth
+      // para satisfacer este check sin requerir Google Sign-In.
+      allow write: if isAuthenticated() && isValidSize() && isValidFileType();
+    }
+    
+    // Denegar acceso a cualquier otra ruta no especificada
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
